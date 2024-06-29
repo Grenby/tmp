@@ -48,11 +48,19 @@ def calculate(data):
             if u in G[u]:
                 G.remove_edge(u, u)
         city_tests.test_graph(G,
-                              f'{name}',
+                              f'{name}_dijkstra',
                               id,
                               points=points, pos=NUMBER, logs=True)
+        city_tests.test_graph(G,
+                              f'{name}_bidirectional',
+                              id,
+                              points=points, pos=NUMBER, logs=True, alg='bidirectional')
+        city_tests.test_graph(G,
+                              f'{name}_astar',
+                              id,
+                              points=points, pos=NUMBER, logs=True, alg='astar')
         # print(name, id)
-        NUMBER+=THREADS
+        NUMBER += THREADS
 
 
 if __name__ == '__main__':
@@ -61,35 +69,37 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         total = int(sys.argv[1])
 
-
     print('THREADS:', total)
     print('POINTS:', points_number)
 
     cities = {
-        'ASHA': 'R13470549',
-        # 'KRG': 'R4676636',
-        # 'EKB': 'R6564910',
-        # 'BARCELONA': 'R347950',
-        # 'PARIS': 'R71525',
-        # 'Prague': 'R435514',
-        # 'MSK': 'R2555133',
-        # 'SBP': 'R337422',
-        # 'SINGAPORE': 'R17140517',
-        # 'BERLIN': 'R62422',
-        # 'ROME': 'R41485',
-        # 'LA': 'R207359',
-        # 'DUBAI': 'R4479752',
-        # 'RIO': 'R2697338',
+        # 'ASHA': 'R13470549',
+        'KRG': 'R4676636',
+        'EKB': 'R6564910',
+        'BARCELONA': 'R347950',
+        'PARIS': 'R71525',
+        'Prague': 'R435514',
+        'MSK': 'R2555133',
+        'SBP': 'R337422',
+        'SINGAPORE': 'R17140517',
+        'BERLIN': 'R62422',
+        'ROME': 'R41485',
+        'LA': 'R207359',
+        'DUBAI': 'R4479752',
+        'RIO': 'R2697338',
         # 'DELHI': 'R1942586',
         # 'KAIR': 'R5466227'
     }
-    G = get_graph('R71525')
+    # for c in cities:
+    #     if os.fi
+    # G = get_graph('R71525')
+    # nx.write_graphml(G, f'{cities["ASHA"]}')
     # with open('PARIS.pkl', 'wb') as fp:
     #     pickle.dump(G, fp)
     #     fp.close()
     total_len = len(cities)
     l = list(cities.items())
-    data = [[l[i: total_len: total],points_number, i + 1, total] for i in range(total)]
+    data = [[l[i: total_len: total], points_number, i + 1, total] for i in range(total)]
     # print(data)
     with Pool(total) as p:
         p.map(calculate, data)
