@@ -71,7 +71,6 @@ def find_path(
         raise e
 
 
-
 def find_path_length(
         layer: GraphLayer,
         from_node: int,
@@ -118,11 +117,23 @@ def find_path_length(
         print('No path found in clusters')
         return -1
 
+    cls2next = {}
     cls = set()
     cls.add(to_cluster)
+    prev = from_cluster
     for u in path:
-        c = layer.graph.nodes[u]['cluster']
+        du = layer.graph.nodes[u]
+        c = du['cluster']
+        if c != prev:
+            cls2next[prev] = u
+        prev = c
         cls.add(c)
+    cls2next[prev] = to_node
+    def h1(a, b):
+        da = layer.graph.nodes[a]
+        db = layer.graph.nodes[cls2next[da['cluster']]]
+        # db = layer.graph.nodes[b]
+        return ((da['x'] - db['x']) ** 2 + (da['y'] - db['y']) ** 2) ** 0.5 / 360 * 2 * np.pi * 6371.01 * 1000
 
     g = extract_cluster_list_subgraph(layer.graph, cls, layer.communities)
     try:
@@ -131,7 +142,7 @@ def find_path_length(
         if alg == 'bidirectional':
             return nx.bidirectional_dijkstra(g, from_node, to_node, weight='length')[0]
         if alg == 'astar':
-            return nx.astar_path_length(g, from_node, to_node, weight='length', heuristic=h)
+            return nx.astar_path_length(g, from_node, to_node, weight='length', heuristic=h1)
     except nx.NetworkXNoPath as e:
         print(nx.is_connected(g))
         print('No path in cluster subgraph')

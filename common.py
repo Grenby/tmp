@@ -51,10 +51,9 @@ class CityResult:
 class GraphLayer:
     def __init__(self,
                  graph: nx.Graph,
-                 resolution: float,
                  communities: list[set[int]],
                  cluster_to_neighboring_cluster: dict[int, set[int]],
-                 cluster_to_bridge_points: dict[int, set[int] ],
+                 cluster_to_bridge_points: dict[int, set[int]],
                  cluster_to_center: dict[int, int],
                  centroids_graph: nx.Graph
                  ):
@@ -63,5 +62,22 @@ class GraphLayer:
         self.cluster_to_neighboring_cluster = cluster_to_neighboring_cluster
         self.communities = communities
         self.centroids_graph = centroids_graph
-        self.resolution = resolution
         self.graph = graph
+
+
+class Layer:
+    def __init__(self,
+                 graph: nx.Graph,
+                 communities: list[set[int]],
+                 cluster_to_center: dict[int, int],
+                 centroids_graph: nx.Graph
+                 ):
+        self.cluster_to_center = cluster_to_center
+        self.communities = communities
+        self.centroids_graph = centroids_graph
+        self.graph = graph
+
+
+class HStructure:
+    def __init__(self, layers: list[GraphLayer]):
+        self.layers = layers

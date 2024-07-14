@@ -58,7 +58,26 @@ def resolve_communities(H: nx.Graph, r: float = 20) -> list[set[int]]:
     for i, ids in enumerate(cls):
         for j in ids:
             H.nodes[j]['cluster'] = i
-    return cls
+
+    cls2hubs = get_cluster_to_bridge_points(H)
+
+    cls_new = []
+    added = set()
+    for i, ids in enumerate(cls):
+        nodes: set = cls2hubs[i].copy()
+        for node in cls2hubs[i]:
+            nodes.remove(node)
+            if node not in added:
+                cls_new.append({node})
+            added.add(node)
+        if len(nodes) > 0:
+            cls_new.append(nodes)
+
+    for i, ids in enumerate(cls_new):
+        for j in ids:
+            H.nodes[j]['cluster'] = i
+
+    return cls_new
 
 
 def generate_communities_subgraph(H: nx.Graph, communities: list[set[int]]) -> list[nx.Graph]:
@@ -99,8 +118,8 @@ def get_cluster_to_bridge_points(H: nx.Graph) -> dict[int, set[int]]:
                 cls_to_bridge_points[c1] = set()
             if not (c2 in cls_to_bridge_points):
                 cls_to_bridge_points[c2] = set()
-            cls_to_bridge_points[c1].add(u)
-            cls_to_bridge_points[c2].add(v)
+            cls_to_bridge_points[c2].add(u)
+            cls_to_bridge_points[c1].add(v)
     return cls_to_bridge_points
 
 
@@ -134,22 +153,23 @@ def build_center_graph(
     X = nx.Graph()
     for cls, _ in enumerate(communities):
         gc = extract_cluster_list_subgraph(graph, [cls], communities)
-        if has_coordinates:
-            _p: dict[int, dict[int, float]] = {u: {v: get_dist(du, dv) for v, dv in gc.nodes(data=True)} for u, du in
-                                               gc.nodes(data=True)}
-        else:
-            _p: dict[int, dict[int, float]] = dict(nx.all_pairs_bellman_ford_path_length(gc, weight='length'))
-        if use_all_point:
-            dist = {u: get_path_len(_p[u], communities[cls], p) for u in _p}
-        else:
-            dist = {u: get_path_len(_p[u], cluster_to_bridge_points[cls], p) for u in _p}
-        min_path = None
-        min_node = 0
-        for u in dist:
-            d = dist[u]
-            if min_path is None or d < min_path:
-                min_path = d
-                min_node = u
+        # if has_coordinates:
+        #     _p: dict[int, dict[int, float]] = {u: {v: get_dist(du, dv) for v, dv in gc.nodes(data=True)} for u, du in
+        #                                        gc.nodes(data=True)}
+        # else:
+        #     _p: dict[int, dict[int, float]] = dict(nx.all_pairs_bellman_ford_path_length(gc, weight='length'))
+        # if use_all_point:
+        #     dist = {u: get_path_len(_p[u], communities[cls], p) for u in _p}
+        # else:
+        #     dist = {u: get_path_len(_p[u], cluster_to_bridge_points[cls], p) for u in _p}
+        # min_path = None
+        # min_node = 0
+        # for u in dist:
+        #     d = dist[u]
+        #     if min_path is None or d < min_path:
+        #         min_path = d
+        #         min_node = u
+        min_node = nx.barycenter(gc, weight='length')[0]
         du = graph.nodes(data=True)[min_node]
         X.add_node(min_node, **du)
         centers[cls] = min_node
@@ -159,7 +179,7 @@ def build_center_graph(
         for v in cluster_to_neighboring_cluster[d['cluster']]:
             dv = X.nodes[centers[v]]
             if has_coordinates:
-                path = np.sqrt((d['x'] - dv['x'])**2 + (d['y'] - dv['y'])**2)
+                path = np.sqrt((d['x'] - dv['x']) ** 2 + (d['y'] - dv['y']) ** 2)
             else:
                 path = nx.single_source_dijkstra(
                     extract_cluster_list_subgraph(graph, [d['cluster'], dv['cluster']], communities),
@@ -236,7 +256,6 @@ def generate_layer(H: nx.Graph, resolution: float, p: float = 1, use_all_point: 
 
     layer: GraphLayer = GraphLayer(
         H,
-        resolution,
         communities,
         cluster_to_neighboring_clusters,
         cluster_to_bridge_points,

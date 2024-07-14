@@ -1,4 +1,6 @@
+import math
 import time
+import random
 
 import networkx as nx
 import numpy as np
@@ -93,10 +95,10 @@ def generate_result(
 
 def test_graph(graph: nx.Graph, name: str, city_id: str, points: list[tuple[int, int]] = None,
                resolutions: list[float] = None, pos=2, logs=True, alg='dijkstra') -> CityResult:
-    # print(name, nx.is_connected(graph))
+    print(name, nx.is_connected(graph))
     max_alpha = 1 if resolutions is None else max(resolutions)
     delta = max_alpha / 40
-
+    print(max_alpha)
     if resolutions is None:
         resolutions = []
         resolutions += [i / 10 for i in range(1, 10, 1)]
@@ -105,7 +107,7 @@ def test_graph(graph: nx.Graph, name: str, city_id: str, points: list[tuple[int,
         resolutions += [i for i in range(50, 100, 5)]
         resolutions += [i for i in range(100, 500, 10)]
         resolutions += [i for i in range(500, 1000, 50)]
-        resolutions += [i for i in range(1000, 2000, 200)]
+        resolutions += [i for i in range(1000, 5000, 200)]
     if points is None:
         N: int = 1000
         points = [get_node_for_initial_graph_v2(graph) for _ in trange(N, desc='generate points')]
@@ -131,10 +133,11 @@ def test_graph(graph: nx.Graph, name: str, city_id: str, points: list[tuple[int,
         for r in resolutions:
             start = time.time()
             community = graph_generator.resolve_communities(graph, r)
-            print(len(community) / len(graph.nodes))
-            if len(community) < 10:
+            # print(len(community) / len(graph.nodes))
+            if len(community) < 5:
                 continue
             a = len(community) / len(graph.nodes)
+            print(a, r)
             has = False
             for curr in alphas:
                 if abs(curr - a) < delta:
@@ -180,9 +183,189 @@ def test_graph(graph: nx.Graph, name: str, city_id: str, points: list[tuple[int,
         print(alg + ' usual time:', result.points_results[indx].absolute_time[0] * max_s)
         print(alg + ' hpfa time:', result.points_results[indx].absolute_time[0])
         print(alg + ' max_speedUp:', max(s))
-        print(alg + ' mean_err:', np.mean(result.points_results[np.argmax(s)].errors), np.std(result.points_results[0].errors))
-        print(alg + ' max_err:',np.max(result.points_results[np.argmax(s)].errors))
+        print(alg + ' mean_err:', np.mean(result.points_results[np.argmax(s)].errors),
+              np.std(result.points_results[0].errors))
+        print(alg + ' max_err:', np.max(result.points_results[np.argmax(s)].errors))
     return result
+
+
+def test_graph_swapp(graph: nx.Graph, name: str, city_id: str, p: float, points: list[tuple[int, int]] = None,
+                     resolutions: list[float] = None, pos=2, logs=True, alg='dijkstra') -> CityResult:
+    print(name, nx.is_connected(graph))
+    max_alpha = 1
+    delta = max_alpha / 40
+    if resolutions is None:
+        resolutions = []
+        resolutions += [i / 10 for i in range(1, 10, 1)]
+        resolutions += [i for i in range(1, 10, 1)]
+        resolutions += [i for i in range(10, 50, 2)]
+        resolutions += [i for i in range(50, 100, 5)]
+        resolutions += [i for i in range(100, 500, 10)]
+        resolutions += [i for i in range(500, 1000, 50)]
+        resolutions += [i for i in range(1000, 5000, 200)]
+    if points is None:
+        N: int = 1000
+        points = [get_node_for_initial_graph_v2(graph) for _ in trange(N, desc='generate points')]
+    else:
+        N = len(points)
+
+    has_coords = 'x' in [d for u, d in graph.nodes(data=True)][0]
+
+
+    alphas = set()
+
+    for r in tqdm(resolutions, position=pos, desc=f'resolutions for {name}'):
+        count = round(len(graph.nodes) * p /100)
+
+        usual_results = get_usual_result(graph, points, alg=alg)
+
+        result = CityResult(
+            name=name,
+            name_suffix=f'_swap{count}',
+            city_id=city_id,
+            nodes=len(graph.nodes),
+            edges=len(graph.edges)
+        )
+
+        start = time.time()
+        community = graph_generator.resolve_communities(graph, r)
+        a = len(community) / len(graph.nodes)
+        has = False
+        for curr in alphas:
+            if abs(curr - a) < delta:
+                has = True
+                break
+        if has or a > max_alpha:
+            if logs:
+                tqdm.write(f'alpha: {a} -- skip')
+            if a == 1 and 1 in alphas or a > max_alpha:
+                break
+            else:
+                continue
+        alphas.add(a)
+        layer, build_communities, build_additional, build_centroid_graph = generate_layer(graph, r,
+                                                                                          has_coordinates=has_coords,
+                                                                                          communities=community)
+        tmp = test_layer(points, layer, alg=alg)
+        total = time.time() - start
+        text = """
+                name:           {}
+                alpha:          {:4f}
+                total time:     {:.3f}
+                prepare time:   {:.3f} 
+                    build_communities:      {:.3f}
+                    build_additional:       {:.3f}
+                    build_centroid_graph:   {:.3f}
+                pfa time:       {:.3f}
+            """.format(name, a, total, total - tmp[0], build_communities, build_additional, build_centroid_graph,
+                       tmp[0])
+        if logs:
+            tqdm.write(text)
+        result.points_results.append(generate_result(usual_results, tmp, r, layer))
+        result.save()
+
+    return result
+
+def connected_double_edge_swap(G, nswap=1):
+    n = 0
+    swapcount = 0
+    dk = [n for n, d in G.degree()]
+    cdf = nx.utils.cumulative_distribution([d for n, d in G.degree()])
+    discrete_sequence = nx.utils.discrete_sequence
+    window = 1
+    while n < nswap:
+        wcount = 0
+        swapped = []
+        # If the window is small, we just check each time whether the graph is
+        # connected by checking if the nodes that were just separated are still
+        # connected.
+        if window < 100:
+            # This Boolean keeps track of whether there was a failure or not.
+            fail = False
+            while wcount < window and n < nswap:
+                # Pick two random edges without creating the edge list. Choose
+                # source nodes from the discrete degree distribution.
+                (ui, xi) = discrete_sequence(2, cdistribution=cdf, seed=seed)
+                # If the source nodes are the same, skip this pair.
+                if ui == xi:
+                    continue
+                # Convert an index to a node label.
+                u = dk[ui]
+                x = dk[xi]
+                # Choose targets uniformly from neighbors.
+                v = seed.choice(list(G.neighbors(u)))
+                y = seed.choice(list(G.neighbors(x)))
+                # If the target nodes are the same, skip this pair.
+                if v == y:
+                    continue
+                if x not in G[u] and y not in G[v]:
+                    G.remove_edge(u, v)
+                    G.remove_edge(x, y)
+                    G.add_edge(u, x)
+                    G.add_edge(v, y)
+                    swapped.append((u, v, x, y))
+                    swapcount += 1
+                n += 1
+                # If G remains connected...
+                if nx.has_path(G, u, v):
+                    wcount += 1
+                # Otherwise, undo the changes.
+                else:
+                    G.add_edge(u, v)
+                    G.add_edge(x, y)
+                    G.remove_edge(u, x)
+                    G.remove_edge(v, y)
+                    swapcount -= 1
+                    fail = True
+            # If one of the swaps failed, reduce the window size.
+            if fail:
+                window = math.ceil(window / 2)
+            else:
+                window += 1
+        # If the window is large, then there is a good chance that a bunch of
+        # swaps will work. It's quicker to do all those swaps first and then
+        # check if the graph remains connected.
+        else:
+            while wcount < window and n < nswap:
+                # Pick two random edges without creating the edge list. Choose
+                # source nodes from the discrete degree distribution.
+                (ui, xi) = discrete_sequence(2, cdistribution=cdf, seed=seed)
+                # If the source nodes are the same, skip this pair.
+                if ui == xi:
+                    continue
+                # Convert an index to a node label.
+                u = dk[ui]
+                x = dk[xi]
+                # Choose targets uniformly from neighbors.
+                v = seed.choice(list(G.neighbors(u)))
+                y = seed.choice(list(G.neighbors(x)))
+                # If the target nodes are the same, skip this pair.
+                if v == y:
+                    continue
+                if x not in G[u] and y not in G[v]:
+                    G.remove_edge(u, v)
+                    G.remove_edge(x, y)
+                    G.add_edge(u, x)
+                    G.add_edge(v, y)
+                    swapped.append((u, v, x, y))
+                    swapcount += 1
+                n += 1
+                wcount += 1
+            # If the graph remains connected, increase the window size.
+            if nx.is_connected(G):
+                window += 1
+            # Otherwise, undo the changes from the previous window and decrease
+            # the window size.
+            else:
+                while swapped:
+                    (u, v, x, y) = swapped.pop()
+                    G.add_edge(u, v)
+                    G.add_edge(x, y)
+                    G.remove_edge(u, x)
+                    G.remove_edge(v, y)
+                    swapcount -= 1
+                window = math.ceil(window / 2)
+    return swapcount
 
 
 def get_resolution_for_alpha(graph: nx.Graph, alpha: float) -> float:

@@ -6,9 +6,10 @@ from multiprocessing import Pool
 
 import networkx as nx
 import numpy as np
+import pandas as pd
 from scipy.spatial import KDTree as kd
 from tqdm import trange, tqdm
-
+# import matplotlib.pyplot as plt
 import city_tests
 import graph_generator
 
@@ -44,15 +45,23 @@ def calculate(data):
         points = [graph_generator.get_node_for_initial_graph_v2(G) for _ in
                   range(points_number)]
 
-        for u in G.nodes:
-            if u in G[u]:
-                G.remove_edge(u, u)
-        city_tests.test_graph(G,
+        Q = G.copy()
+        for u in Q.nodes:
+            if u in Q[u]:
+                Q.remove_edge(u, u)
+        data = {}
+        for (u,d) in Q.degree:
+            if d not in data:
+                data[d]=0
+            data[d]+=1
+        df = pd.DataFrame(data.items())
+        print(df)
+        return
+        city_tests.test_graph(Q,
                               f'{name}',
                               id,
                               points=points, pos=NUMBER, logs=True)
-        # print(name, id)
-        NUMBER+=THREADS
+        NUMBER += THREADS
 
 
 if __name__ == '__main__':
@@ -61,16 +70,15 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         total = int(sys.argv[1])
 
-
-    print('THREADS:', total)
-    print('POINTS:', points_number)
+    # print('THREADS:', total)
+    # print('POINTS:', points_number)
 
     cities = {
-        'ASHA': 'R13470549',
+        # 'ASHA': 'R13470549',
         # 'KRG': 'R4676636',
         # 'EKB': 'R6564910',
         # 'BARCELONA': 'R347950',
-        # 'PARIS': 'R71525',
+        'PARIS': 'R71525',
         # 'Prague': 'R435514',
         # 'MSK': 'R2555133',
         # 'SBP': 'R337422',
@@ -83,13 +91,17 @@ if __name__ == '__main__':
         # 'DELHI': 'R1942586',
         # 'KAIR': 'R5466227'
     }
-    G = get_graph('R71525')
+    # G = get_graph('R71525')
     # with open('PARIS.pkl', 'wb') as fp:
     #     pickle.dump(G, fp)
     #     fp.close()
     total_len = len(cities)
     l = list(cities.items())
-    data = [[l[i: total_len: total],points_number, i + 1, total] for i in range(total)]
+    data = [[l[i: total_len: total], points_number, i + 1, total] for i in range(total)]
     # print(data)
-    with Pool(total) as p:
-        p.map(calculate, data)
+    # for n in tqdm(cities):
+    #     G = get_graph(cities[n])
+    #     nx.write_graphml(G, n)
+    # with Pool(total) as p:
+    #     p.map(calculate, data)
+    calculate(data[0])

@@ -40,25 +40,33 @@ def calculate(data):
 
     for name, id in cities:
         G = get_graph(id)
+        print(len(G.nodes))
+        return
+        ss = [0.1, 1, 5, 10, 50, 100]
+        swaps = []
+
+        for s in ss:
+            swaps.append(round(len(G.nodes) * s / 100))
 
         points = [graph_generator.get_node_for_initial_graph_v2(G) for _ in
                   range(points_number)]
 
-        for u in G.nodes:
-            if u in G[u]:
-                G.remove_edge(u, u)
-        # city_tests.test_graph(G,
-        #                       f'{name}_dijkstra',
-        #                       id,
-        #                       points=points, pos=NUMBER, logs=True)
-        # city_tests.test_graph(G,
-        #                       f'{name}_bidirectional',
-        #                       id,
-        #                       points=points, pos=NUMBER, logs=True, alg='bidirectional')
-        city_tests.test_graph(G,
-                              f'{name}_astar',
-                              id,
-                              points=points, pos=NUMBER, logs=True, alg='astar')
+        for swap in swaps:
+            Q = G.copy()
+            nx.connected_double_edge_swap(Q, swap)
+            for u in Q.nodes:
+                if u in Q[u]:
+                    Q.remove_edge(u, u)
+            for e in Q.edges:
+                if 'length' not in Q.edges[e]:
+                    da = G.nodes[e[0]]
+                    db = G.nodes[e[1]]
+                    Q.edges[e]['length'] = ((da['x'] - db['x']) ** 2 + (
+                            da['y'] - db['y']) ** 2) ** 0.5 / 360 * 2 * np.pi * 6371.01 * 1000
+            city_tests.test_graph(Q,
+                                  f'{name}_swap_{swap}',
+                                  id,
+                                  points=points, pos=NUMBER, logs=True)
         # print(name, id)
         NUMBER += THREADS
 
@@ -69,8 +77,8 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         total = int(sys.argv[1])
 
-    print('THREADS:', total)
-    print('POINTS:', points_number)
+    # print('THREADS:', total)
+    # print('POINTS:', points_number)
 
     cities = {
         # 'ASHA': 'R13470549',
@@ -85,15 +93,12 @@ if __name__ == '__main__':
         # 'BERLIN': 'R62422',
         # 'ROME': 'R41485',
         # 'LA': 'R207359',
-        # 'DUBAI': 'R4479752',
+        'DUBAI': 'R4479752',
         # 'RIO': 'R2697338',
         # 'DELHI': 'R1942586',
         # 'KAIR': 'R5466227'
     }
-    # for c in cities:
-    #     if os.fi
     # G = get_graph('R71525')
-    # nx.write_graphml(G, f'{cities["ASHA"]}')
     # with open('PARIS.pkl', 'wb') as fp:
     #     pickle.dump(G, fp)
     #     fp.close()
@@ -101,5 +106,8 @@ if __name__ == '__main__':
     l = list(cities.items())
     data = [[l[i: total_len: total], points_number, i + 1, total] for i in range(total)]
     # print(data)
+    # for n in tqdm(cities):
+    #     G = get_graph(cities[n])
+    #     nx.write_graphml(G, n)
     with Pool(total) as p:
         p.map(calculate, data)

@@ -150,7 +150,7 @@ if __name__ == '__main__':
     dens = np.array(dens)
     # dens = dens[dens < 0.05]
 
-    for ii in range(5):
+    for ii in range():
         NODES = [2000]
         for N in NODES:
             if os.path.isfile(f'{N}.pkl'):
@@ -168,11 +168,11 @@ if __name__ == '__main__':
             p.map(calculate, data)
         os.remove(f'{N}.pkl')
 
-    for ii in range(5):
-        NODES = [2000]
-        total_len = len(dens)
-        data = [[N, dens[i: total_len: total], points_number, j * total_len + (i + 1), total,ii] for i in range(total) for
-                j, N in enumerate(NODES)]
-        data.sort(key=lambda x: x[0])
-        with Pool(total) as p:
-            p.map(calculate_rand, data)
+    # for ii in range(5):
+    #     NODES = [2000]
+    #     total_len = len(dens)
+    #     data = [[N, dens[i: total_len: total], points_number, j * total_len + (i + 1), total,ii] for i in range(total) for
+    #             j, N in enumerate(NODES)]
+    #     data.sort(key=lambda x: x[0])
+    #     with Pool(total) as p:
+    #         p.map(calculate_rand, data)
