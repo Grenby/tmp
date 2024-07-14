@@ -118,24 +118,20 @@ def calculate(data):
         G = gen(N)
         Q = add_density(G, degrees)
     G = Q
+
     tqdm.write(str(len(G.edges) / N))
 
-    # points = [graph_generator.get_node_for_initial_graph_v2(G) for _ in
-    #           range(points_number)]
-    #
-    # for d in dens:
-    #     k = d * (N - 1)
-    #     Q = add_density(G, k)
-    #     for u in Q.nodes:
-    #         if u in Q[u]:
-    #             Q.remove_edge(u, u)
-    #     for i in range(1):
-    #         city_tests.test_graph(Q,
-    #                               f'PlanePoints{ii}_{len(G.nodes)}_{round(nx.density(Q) * 10000) / 10000}',
-    #                               '0',
-    #                               points=points, pos=NUMBER)
-    #
-    #     NUMBER += THREADS
+    points = [graph_generator.get_node_for_initial_graph_v2(G) for _ in
+              range(points_number)]
+
+    for u in Q.nodes:
+        if u in Q[u]:
+            Q.remove_edge(u, u)
+    for i in range(1):
+        city_tests.test_graph(Q,
+                              f'PlanePoints{ii}_{len(G.nodes)}_{round(nx.density(Q) * 10000) / 10000}',
+                              '0',
+                              points=points, pos=NUMBER)
 
 
 def calculate_rand(data):

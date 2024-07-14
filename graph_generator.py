@@ -59,25 +59,24 @@ def resolve_communities(H: nx.Graph, r: float = 20) -> list[set[int]]:
         for j in ids:
             H.nodes[j]['cluster'] = i
 
-    cls2hubs = get_cluster_to_bridge_points(H)
-
-    cls_new = []
-    added = set()
-    for i, ids in enumerate(cls):
-        nodes: set = cls2hubs[i].copy()
-        for node in cls2hubs[i]:
-            nodes.remove(node)
-            if node not in added:
-                cls_new.append({node})
-            added.add(node)
-        if len(nodes) > 0:
-            cls_new.append(nodes)
-
-    for i, ids in enumerate(cls_new):
-        for j in ids:
-            H.nodes[j]['cluster'] = i
-
-    return cls_new
+    # cls2hubs = get_cluster_to_bridge_points(H)
+    #
+    # cls_new = []
+    # added = set()
+    # for i, ids in enumerate(cls):
+    #     nodes: set = cls2hubs[i].copy()
+    #     for node in cls2hubs[i]:
+    #         nodes.remove(node)
+    #         if node not in added:
+    #             cls_new.append({node})
+    #         added.add(node)
+    #     if len(nodes) > 0:
+    #         cls_new.append(nodes)
+    #
+    # for i, ids in enumerate(cls_new):
+    #     for j in ids:
+    #         H.nodes[j]['cluster'] = i
+    return cls
 
 
 def generate_communities_subgraph(H: nx.Graph, communities: list[set[int]]) -> list[nx.Graph]:

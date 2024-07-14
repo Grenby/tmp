@@ -127,36 +127,32 @@ def test_graph(graph: nx.Graph, name: str, city_id: str, points: list[tuple[int,
     )
 
     alphas = set()
-    with tqdm(desc=f'resolutions for {name}', position=pos,
-              total=max_alpha) as progres:
-        prev = 0
-        for r in resolutions:
-            start = time.time()
-            community = graph_generator.resolve_communities(graph, r)
-            # print(len(community) / len(graph.nodes))
-            if len(community) < 5:
+    for r in tqdm(resolutions):
+        start = time.time()
+        community = graph_generator.resolve_communities(graph, r)
+        # print(len(community) / len(graph.nodes))
+        if len(community) < 5:
+            continue
+        a = len(community) / len(graph.nodes)
+        has = False
+        for curr in alphas:
+            if abs(curr - a) < delta:
+                has = True
+                break
+        if has or a > max_alpha:
+            if logs:
+                tqdm.write(f'alpha: {a} -- skip')
+            if a == 1 and 1 in alphas or a > max_alpha:
+                break
+            else:
                 continue
-            a = len(community) / len(graph.nodes)
-            print(a, r)
-            has = False
-            for curr in alphas:
-                if abs(curr - a) < delta:
-                    has = True
-                    break
-            if has or a > max_alpha:
-                if logs:
-                    tqdm.write(f'alpha: {a} -- skip')
-                if a == 1 and 1 in alphas or a > max_alpha:
-                    break
-                else:
-                    continue
-            alphas.add(a)
-            layer, build_communities, build_additional, build_centroid_graph = generate_layer(graph, r,
-                                                                                              has_coordinates=has_coords,
-                                                                                              communities=community)
-            tmp = test_layer(points, layer, alg=alg)
-            total = time.time() - start
-            text = """
+        alphas.add(a)
+        layer, build_communities, build_additional, build_centroid_graph = generate_layer(graph, r,
+                                                                                          has_coordinates=has_coords,
+                                                                                          communities=community)
+        tmp = test_layer(points, layer, alg=alg)
+        total = time.time() - start
+        text = """
                 name:           {}
                 alpha:          {:4f}
                 total time:     {:.3f}
@@ -167,13 +163,10 @@ def test_graph(graph: nx.Graph, name: str, city_id: str, points: list[tuple[int,
                 pfa time:       {:.3f}
             """.format(name, a, total, total - tmp[0], build_communities, build_additional, build_centroid_graph,
                        tmp[0])
-            if logs:
-                tqdm.write(text)
-            result.points_results.append(generate_result(usual_results, tmp, r, layer))
-            progres.update(a - prev)
-            prev = a
+        if logs:
+            tqdm.write(text)
+        result.points_results.append(generate_result(usual_results, tmp, r, layer))
 
-        progres.update(max_alpha - prev)
 
     result.save()
     if logs:
@@ -211,11 +204,10 @@ def test_graph_swapp(graph: nx.Graph, name: str, city_id: str, p: float, points:
 
     has_coords = 'x' in [d for u, d in graph.nodes(data=True)][0]
 
-
     alphas = set()
 
     for r in tqdm(resolutions, position=pos, desc=f'resolutions for {name}'):
-        count = round(len(graph.nodes) * p /100)
+        count = round(len(graph.nodes) * p / 100)
 
         usual_results = get_usual_result(graph, points, alg=alg)
 
@@ -265,6 +257,7 @@ def test_graph_swapp(graph: nx.Graph, name: str, city_id: str, p: float, points:
         result.save()
 
     return result
+
 
 def connected_double_edge_swap(G, nswap=1):
     n = 0
