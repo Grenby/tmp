@@ -39,7 +39,7 @@ def calculate(data):
     NUMBER = data[2]
     THREADS = data[3]
 
-    for name, id in cities:
+    for name, id in tqdm(cities, position=NUMBER):
         G = get_graph(id)
 
         points = [graph_generator.get_node_for_initial_graph_v2(G) for _ in
@@ -54,11 +54,11 @@ def calculate(data):
                               f'{name}',
                               id,
                               points=points, pos=NUMBER, logs=False)
-        NUMBER += THREADS
+        # NUMBER += THREADS
 
 
 if __name__ == '__main__':
-    total = 1
+    total = 2
     points_number = 500
     if len(sys.argv) == 2:
         total = int(sys.argv[1])
@@ -97,5 +97,6 @@ if __name__ == '__main__':
     # for n in tqdm(cities):
     #     G = get_graph(cities[n])
     #     nx.write_graphml(G, n)
+    print(total)
     with Pool(total) as p:
         p.map(calculate, data)

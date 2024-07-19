@@ -95,10 +95,8 @@ def generate_result(
 
 def test_graph(graph: nx.Graph, name: str, city_id: str, points: list[tuple[int, int]] = None,
                resolutions: list[float] = None, pos=2, logs=True, alg='dijkstra') -> CityResult:
-    print(name, nx.is_connected(graph))
     max_alpha = 1 if resolutions is None else max(resolutions)
     delta = max_alpha / 40
-    print(max_alpha)
     if resolutions is None:
         resolutions = []
         resolutions += [i / 10 for i in range(1, 10, 1)]
@@ -127,7 +125,7 @@ def test_graph(graph: nx.Graph, name: str, city_id: str, points: list[tuple[int,
     )
 
     alphas = set()
-    for r in tqdm(resolutions):
+    for r in resolutions:
         start = time.time()
         community = graph_generator.resolve_communities(graph, r)
         # print(len(community) / len(graph.nodes))
