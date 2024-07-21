@@ -2,6 +2,7 @@ import math
 import time
 import random
 
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 from tqdm import tqdm, trange
@@ -32,12 +33,17 @@ def test_layer(
         alg='dijkstra'
 ) -> tuple[float, list[float]]:
     test_paths: list[float] = []
+    total1, total2, total3 = 0.0,0.0,0.0
     start_time = time.time()
     for point_from, point_to in points:
-        test_paths.append(pfa.find_path_length(layer, point_from, point_to, alg=alg))
+        path,s1,s2,s3 = pfa.find_path_length(layer, point_from, point_to, alg=alg)
+        total1+=s1
+        total2+=s2
+        total3+=s3
+        test_paths.append(path)
     end_time = time.time()
     test_time = end_time - start_time
-    return test_time, test_paths
+    return test_time, test_paths, total1, total2, total3
 
 
 def get_usual_result(g: nx.Graph, points: list[tuple[int, int]], alg='dijkstra') -> tuple[float, list[float]]:
@@ -124,8 +130,10 @@ def test_graph(graph: nx.Graph, name: str, city_id: str, points: list[tuple[int,
         edges=len(graph.edges)
     )
 
+    s1,s2,s3 = [],[],[]
+    alpha = []
     alphas = set()
-    for r in resolutions:
+    for r in tqdm(resolutions):
         start = time.time()
         community = graph_generator.resolve_communities(graph, r)
         # print(len(community) / len(graph.nodes))
@@ -148,7 +156,12 @@ def test_graph(graph: nx.Graph, name: str, city_id: str, points: list[tuple[int,
         layer, build_communities, build_additional, build_centroid_graph = generate_layer(graph, r,
                                                                                           has_coordinates=has_coords,
                                                                                           communities=community)
-        tmp = test_layer(points, layer, alg=alg)
+        test_time, test_paths, total1, total2, total3 = test_layer(points, layer, alg=alg)
+        tmp = [test_time, test_paths]
+        s1.append(total1)
+        s2.append(total2)
+        s3.append(total3)
+        alpha.append(a)
         total = time.time() - start
         text = """
                 name:           {}
@@ -165,6 +178,17 @@ def test_graph(graph: nx.Graph, name: str, city_id: str, points: list[tuple[int,
             tqdm.write(text)
         result.points_results.append(generate_result(usual_results, tmp, r, layer))
 
+    plt.figure(figsize=(16, 9))
+    plt.scatter(alpha,s1, alpha=0.5, label='s1')
+    plt.scatter(alpha, s2, alpha=0.5, label='s2')
+    plt.scatter(alpha, s3, alpha=0.5, label='s3')
+
+    # plt.loglog(df['density'], df['fit'], '--', color='red', label=fr'Fit: {A} $\times \text{{density}}^{{-1/3}}$')
+    plt.xlabel('alpha')
+    plt.ylabel('time')
+    plt.title('Scatter plot with Fit')
+    plt.legend()
+    plt.show()
 
     result.save()
     if logs:

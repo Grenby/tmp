@@ -1,5 +1,8 @@
+import time
+
 import networkx as nx
 import numpy as np
+from tqdm import tqdm
 
 from common import GraphLayer
 from graph_generator import extract_cluster_list_subgraph
@@ -39,6 +42,7 @@ def find_path(
     to_center = layer.cluster_to_center[to_cluster]
 
     try:
+        start = time.time()
         g = layer.centroids_graph
         path = []
         if alg == 'dijkstra':
@@ -47,10 +51,13 @@ def find_path(
             path = nx.bidirectional_dijkstra(g, from_center, to_center, weight='length')
         if alg == 'astar':
             path = [nx.astar_path_length(g, from_center, to_center, weight='length', heuristic=h)]
+        end = time.time()
+        step1 = end - start
     except nx.NetworkXNoPath as e:
         print('No path found in clusters')
         raise e
 
+    start = time.time()
     cls = set()
     cls.add(to_cluster)
     for u in path:
@@ -58,13 +65,25 @@ def find_path(
         cls.add(c)
 
     g = extract_cluster_list_subgraph(layer.graph, cls, layer.communities)
+    end = time.time()
+    step2 = end - start
     try:
+        start = time.time()
+
         if alg == 'dijkstra':
-            return nx.single_source_dijkstra(g, from_node, to_node, weight='length')
+            path = nx.single_source_dijkstra(g, from_node, to_node, weight='length')
         if alg == 'bidirectional':
-            return nx.bidirectional_dijkstra(g, from_node, to_node, weight='length')
+            path = nx.bidirectional_dijkstra(g, from_node, to_node, weight='length')
         if alg == 'astar':
-            return [nx.astar_path_length(g, from_node, to_node, weight='length', heuristic=h)]
+            path = [nx.astar_path_length(g, from_node, to_node, weight='length', heuristic=h)]
+        end = time.time()
+        step3 = end - start
+        tqdm.write(f"""
+        step1: {step1}
+        step2: {step2}
+        step3: {step3}
+        """)
+        return path
     except nx.NetworkXNoPath as e:
         print(nx.is_connected(g))
         print('No path in cluster subgraph')
@@ -92,11 +111,11 @@ def find_path_length(
         try:
             g = extract_cluster_list_subgraph(layer.graph, [to_cluster], layer.communities)
             if alg == 'dijkstra':
-                return nx.single_source_dijkstra(g, from_node, to_node, weight='length')[0]
+                return nx.single_source_dijkstra(g, from_node, to_node, weight='length')[0], 0,0,0
             if alg == 'bidirectional':
-                return nx.bidirectional_dijkstra(g, from_node, to_node, weight='length')[0]
+                return nx.bidirectional_dijkstra(g, from_node, to_node, weight='length')[0], 0,0,0
             if alg == 'astar':
-                return nx.astar_path_length(g, from_node, to_node, weight='length', heuristic=h)
+                return nx.astar_path_length(g, from_node, to_node, weight='length', heuristic=h), 0,0,0
         except nx.NetworkXNoPath as e:
             print('No path found in one cluster')
             return -1
@@ -105,6 +124,8 @@ def find_path_length(
     to_center = layer.cluster_to_center[to_cluster]
 
     try:
+        start = time.time()
+
         g = layer.centroids_graph
         path = []
         if alg == 'dijkstra':
@@ -113,10 +134,12 @@ def find_path_length(
             path = nx.bidirectional_dijkstra(g, from_center, to_center, weight='length')[1]
         if alg == 'astar':
             path = nx.astar_path(g, from_center, to_center, weight='length', heuristic=h)
+        end = time.time()
+        step1 = end - start
     except nx.NetworkXNoPath as e:
         print('No path found in clusters')
         return -1
-
+    start = time.time()
     cls2next = {}
     cls = set()
     cls.add(to_cluster)
@@ -129,6 +152,7 @@ def find_path_length(
         prev = c
         cls.add(c)
     cls2next[prev] = to_node
+
     def h1(a, b):
         da = layer.graph.nodes[a]
         db = layer.graph.nodes[cls2next[da['cluster']]]
@@ -136,13 +160,25 @@ def find_path_length(
         return ((da['x'] - db['x']) ** 2 + (da['y'] - db['y']) ** 2) ** 0.5 / 360 * 2 * np.pi * 6371.01 * 1000
 
     g = extract_cluster_list_subgraph(layer.graph, cls, layer.communities)
+    end = time.time()
+    step2 = end - start
     try:
+        start = time.time()
+
         if alg == 'dijkstra':
-            return nx.single_source_dijkstra(g, from_node, to_node, weight='length')[0]
+            path = nx.single_source_dijkstra(g, from_node, to_node, weight='length')[0]
         if alg == 'bidirectional':
-            return nx.bidirectional_dijkstra(g, from_node, to_node, weight='length')[0]
+            path = nx.bidirectional_dijkstra(g, from_node, to_node, weight='length')[0]
         if alg == 'astar':
-            return nx.astar_path_length(g, from_node, to_node, weight='length', heuristic=h1)
+            path = nx.astar_path_length(g, from_node, to_node, weight='length', heuristic=h1)
+        end = time.time()
+        step3 = end - start
+        # tqdm.write(f"""
+        # step1: {step1}
+        # step2: {step2}
+        # step3: {step3}
+        # """)
+        return path, step1,step2,step3
     except nx.NetworkXNoPath as e:
         print(nx.is_connected(g))
         print('No path in cluster subgraph')
