@@ -216,10 +216,11 @@ def get_node_for_initial_graph_v2(H: nx.Graph):
 
 
 def get_node_for_initial_graph(H: nx.Graph):
-    path_len = round(math.sqrt(len(H.nodes()))) / 2
+    R = nx.radius(H,weight='length')
+    path_len = R / 2
     nodes = list(H.nodes())
     while True:
-        for i in range(20):
+        for i in range(100):
             node_from = random.choice(nodes)
             node_to = random.choice(nodes)
             current_len = nx.single_source_dijkstra(H, node_from, node_to)[0]

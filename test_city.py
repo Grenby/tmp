@@ -1,3 +1,4 @@
+import itertools
 import math
 import pickle
 import random
@@ -14,6 +15,8 @@ import city_tests
 import graph_generator
 
 import osmnx as ox
+
+from common import GraphLayer
 
 
 def get_graph(city_id: str = 'R2555133') -> nx.Graph:
@@ -32,6 +35,36 @@ def get_graph(city_id: str = 'R2555133') -> nx.Graph:
     del city_id, gdf, polygon_boundary, graph, G
     return H
 
+def percent(l, p=0.1, max_points=10):
+    res = int(len(l) * p) if len(l) * p >= 1 else 1
+    if res > max_points:
+        res = 10
+    return res
+def find_points_for_experiment(l: GraphLayer, min_length=5.0, p=0.1, max_points=2):
+    # словарь хранит в себе {id_кластер: {other_кластер: расстояние до него}}
+    d = dict(nx.all_pairs_dijkstra_path_length(l.centroids_graph))
+    df = pd.DataFrame(d)
+    df = df.reindex(sorted(df.columns), axis=1)
+    df = df.sort_index()
+    graph_path_length = df.values
+    res = []
+
+    for com_1 in range(len(graph_path_length)):
+        for com_2 in range(com_1 + 1, len(graph_path_length)):
+            if graph_path_length[com_1][com_2] >= min_length:
+                 list_1 = random.sample(l.communities[com_1],
+                                        k=percent(l.communities[com_1], p, max_points))
+                 list_2 = random.sample(l.communities[com_2],
+                                        k=percent(l.communities[com_2], p, max_points))
+                 all_lists = itertools.product(list_1, list_2)
+
+                 res.extend(list(all_lists))
+    try:
+        part = random.sample(res, k=max_points)
+    except ValueError:
+        part = res  # Если k больше размера популяции или отрицательно, используем весь список
+
+    return part
 
 def calculate(data):
     cities = data[0]
@@ -42,9 +75,11 @@ def calculate(data):
     for name, id in cities:
         G = get_graph(id)
 
-        points = [graph_generator.get_node_for_initial_graph_v2(G) for _ in
-                  range(points_number)]
+        l = graph_generator.generate_layer(G,1)
 
+        # points = [graph_generator.get_node_for_initial_graph(G) for _ in
+        #           trange(points_number, desc='generate_points')]
+        points = find_points_for_experiment(l, min_length=nx.radius(G,weight='length')/4, max_points=points_number)
         Q = G.copy()
         for u in Q.nodes:
             if u in Q[u]:
